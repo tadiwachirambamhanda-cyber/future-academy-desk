@@ -34,6 +34,12 @@ function fakeMemory(opts: { fail?: boolean; previous?: string | null } = {}) {
     async getPreviousParentMessage() {
       return opts.previous ?? null;
     },
+    async claimMessage() { return true; },
+    async updateDecision() {},
+    async saveHandover() {},
+    async saveOutbound() {},
+    async countOutboundSince() { return 0; },
+    async getMessageClassification() { return null; },
   };
   return { memory, saved, classifications };
 }
@@ -232,5 +238,39 @@ describe("POST /api/whatsapp classifies each message (F2)", () => {
     expect(all).toContain("fees");
     expect(all).not.toContain("Grade 3");
     expect(all).not.toContain("263770000002");
+  });
+});
+
+describe("POST /api/whatsapp starts the agent after answering (F7)", () => {
+  it("schedules the agent for every saved message, including a duplicate (the agent claims each one)", async () => {
+    const { memory } = fakeMemory();
+    const agent = vi.fn(async () => {});
+    const scheduled: (() => Promise<void>)[] = [];
+    const deps = { memory, secret: SECRET, classify: okClassify(), agent, schedule: (fn: () => Promise<void>) => void scheduled.push(fn) };
+    await handleWebhook(post(JSON.stringify(flatBody("one", "two"))), deps);
+    await handleWebhook(post(JSON.stringify(flatBody("one", "two"))), deps);
+    expect(scheduled).toHaveLength(2);
+    expect(agent).not.toHaveBeenCalled(); // nothing runs until after the response
+    await scheduled[0]();
+    const items = (agent.mock.calls[0] as unknown[])[0] as { body: string; waId: string }[];
+    expect(items.map((i) => i.body)).toEqual(["one", "two"]);
+    expect(items[0].waId).toBe("263770000002");
+  });
+
+  it("does not start the agent when the secret is wrong or the body is broken", async () => {
+    const { memory } = fakeMemory();
+    const scheduled: unknown[] = [];
+    const deps = { memory, secret: SECRET, classify: okClassify(), agent: async () => {}, schedule: (fn: unknown) => void scheduled.push(fn) };
+    await handleWebhook(post(JSON.stringify(flatBody("hi")), {}), deps);
+    await handleWebhook(post("{oops"), deps);
+    expect(scheduled).toHaveLength(0);
+  });
+
+  it("still answers 200 when the agent later fails", async () => {
+    const { memory } = fakeMemory();
+    const res = await handleWebhook(post(JSON.stringify(flatBody("hi"))), {
+      memory, secret: SECRET, classify: okClassify(), agent: async () => { throw new Error("boom"); }, schedule: (fn) => void fn().catch(() => {}),
+    });
+    expect(res.status).toBe(200);
   });
 });

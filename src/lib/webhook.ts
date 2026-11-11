@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { Memory, SaveResult } from "./memory";
 import type { Classification, ClassifyOptions } from "./jev";
+import type { AgentItem } from "./agent";
 import type { InboundMessage } from "./memory";
 import { parseWebhook, WebhookParseError } from "./whatsapp";
 
@@ -15,6 +16,10 @@ type Deps = {
   secret: string | undefined;
   classify: Classify;
   classifyCapMs?: number;
+  // F7: after the 200 is sent, the agent answers every saved message (it claims each one, so a
+  // duplicate delivery never gets a second reply). Absent in tests that do not need it.
+  agent?: (items: AgentItem[]) => Promise<void>;
+  schedule?: (work: () => Promise<void>) => void;
 };
 
 const json = (status: number, body: Record<string, unknown>) => Response.json(body, { status });
@@ -52,7 +57,7 @@ function log(event: string, fields: Record<string, unknown>) {
 
 const TIMED_OUT = Symbol("timed out");
 
-export async function handleWebhook(request: Request, { memory, secret, classify, classifyCapMs = CLASSIFY_CAP_MS }: Deps): Promise<Response> {
+export async function handleWebhook(request: Request, { memory, secret, classify, classifyCapMs = CLASSIFY_CAP_MS, agent, schedule }: Deps): Promise<Response> {
   if (!secret) {
     log("webhook_not_configured", {});
     return json(500, { ok: false });
@@ -129,6 +134,13 @@ export async function handleWebhook(request: Request, { memory, secret, classify
     return json(500, { ok: false });
   } finally {
     clearTimeout(timer);
+  }
+
+  if (agent && schedule && saved.length > 0) {
+    const items: AgentItem[] = saved.map(({ message, result }) => ({
+      conversationId: result.conversationId, messageId: result.messageId, waId: message.waId, body: message.body, sentAt: message.sentAt,
+    }));
+    schedule(() => agent(items));
   }
 
   log("webhook_received", {
