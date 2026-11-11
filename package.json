@@ -10,7 +10,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run --exclude \"**/*.db.test.ts\"",
     "test:db": "node --env-file=.env.local ./node_modules/vitest/vitest.mjs run --config vitest.db.config.ts",
-    "cases": "node --env-file=.env.local --import tsx scripts/run-cases.ts"
+    "cases": "node --env-file=.env.local --import tsx scripts/run-cases.mts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",
