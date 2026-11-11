@@ -102,3 +102,11 @@ Run on 2026-11-11.
 | Wrong secret, oversize body (also without Content-Length), broken body, database failure with no text or number in the log | covered by unit tests, all pass |
 
 Not checked live: the 360dialog retry after a 500 (covered by the duplicate-message tests).
+
+## Codex review
+The project was new and still on `main`, so Codex reviewed the whole repository against an empty project.
+
+**Round 1: VERDICT: FINDINGS(1)**
+1. MINOR, `src/lib/whatsapp.ts` timestamp check: an impossible timestamp such as `1e20` passed the parser, crashed the save and made the webhook answer 500, so 360dialog would retry. **Fixed** (commit `fix: reject a message whose timestamp is not a real date (codex #1)`): the parser rejects it and the webhook answers 400. Tests added in `whatsapp.test.ts` and `webhook.test.ts`.
+
+The agent checks (injection, approval, model output, live tools, secrets to the browser, personal data in logs) found nothing: F1 has no model, no sending and logs only counts.
