@@ -9,6 +9,7 @@ Message in (360dialog webhook) -> Jev classifies the question -> code decides (r
 - `npm run dev`, `npm run build`, `npm run lint`, `npm run typecheck`
 - `npm test`: unit tests, no keys needed
 - `npm run test:db`: database tests, needs the Supabase keys in `.env.local`
+- `npm run cases`: runs the made-up test messages against the real Jev (needs `TYPESAFE_API_KEY`, costs a fraction of a cent, not part of CI); writes `cases/report.md`
 - `node --env-file=.env.local scripts/register-webhook.mjs`: points the 360dialog sandbox at the live webhook
 - Database: the `liwan-desk` Supabase project, tables prefixed `academy_`. Live address: https://future-academy-desk.vercel.app/api/whatsapp
 
