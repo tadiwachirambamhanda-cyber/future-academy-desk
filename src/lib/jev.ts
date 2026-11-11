@@ -57,8 +57,8 @@ const BUSINESS_CONTEXT = "A school receiving a WhatsApp enquiry from a parent.";
 // ---------------------------------------------------------------------------
 
 export type Classification = {
-  engine: "jev" | "error" | "skipped";
-  language: string | null; // what Jev (or the word check) said
+  engine: "jev" | "claude" | "error" | "skipped";
+  language: string | null; // what Jev (or the word check, or Claude) said
   languageConfidence: number | null;
   label: string | null; // empty means: not for the English path
   labelConfidence: number | null;
@@ -66,6 +66,7 @@ export type Classification = {
   inputTokens: number | null;
   costUsd: number | null;
   error: string | null; // kind of failure only, never message text
+  moneyException?: boolean; // only the Claude reader sets this; it is not stored
 };
 
 export type JevAnswers = {
