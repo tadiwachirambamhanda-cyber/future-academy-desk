@@ -30,7 +30,7 @@ export function createSender(options: Options = {}): Send {
       const res = await (options.fetchImpl ?? fetch)(SANDBOX_SEND_URL, {
         method: "POST",
         headers: { "D360-API-KEY": apiKey, "Content-Type": "application/json" },
-        body: JSON.stringify({ recipient_type: "individual", to, type: "text", text: { body: text } }),
+        body: JSON.stringify({ messaging_product: "whatsapp", recipient_type: "individual", to, type: "text", text: { body: text } }),
         signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
       });
       if (!res.ok) return { ok: false, error: `http_${res.status}` };

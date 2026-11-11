@@ -18,7 +18,7 @@ describe("F7: sending", () => {
     const r = await createSender({ fetchImpl: f as unknown as typeof fetch })("263770000002", "Hello");
     expect(r).toEqual({ ok: true, waMessageId: "wamid.OUT1" });
     const body = JSON.parse((f.mock.calls[0][1] as RequestInit).body as string);
-    expect(body).toMatchObject({ to: "263770000002", type: "text", text: { body: "Hello" } });
+    expect(body).toMatchObject({ messaging_product: "whatsapp", to: "263770000002", type: "text", text: { body: "Hello" } });
   });
   it("refuses a recipient that is not just digits", async () => {
     vi.stubEnv("D360_API_KEY", "k");
