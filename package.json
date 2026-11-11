@@ -9,7 +9,7 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run --exclude \"**/*.db.test.ts\"",
-    "test:db": "vitest run --config vitest.db.config.ts"
+    "test:db": "node --env-file=.env.local ./node_modules/vitest/vitest.mjs run --config vitest.db.config.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",
