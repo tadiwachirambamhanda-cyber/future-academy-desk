@@ -79,3 +79,6 @@ A fresh reviewer found 7 issues plus 2 small ones. All were accepted and the pla
 - The fixture is scrubbed of the number, name and ids, with a test that fails if real values remain.
 - A `lint` script is added, and the project is generated in a scratch folder because the folder is not empty.
 - Dismissed: nothing.
+
+## Changes from the plan
+- Step 2: the Supabase free plan allows only 2 active projects (Havenly and liwan-desk), so no new project could be created. By the owner's choice the tables live in the existing `liwan-desk` project (`cidrjxgkplcukxnobrhm`, Mumbai). Its `conversations` and `messages` tables already exist, so the school's are named `academy_conversations`, `academy_messages` and `academy_save_inbound`. They are locked the same way (checked: row-level security on, `anon` and `authenticated` have no privileges, only `service_role` can use them). The two demos share one project but no tables.
