@@ -8,7 +8,7 @@ export type Send = (to: string, text: string) => Promise<SendResult>;
 
 type Options = {
   fetchImpl?: typeof fetch;
-  // Optional extra guard: comma-separated numbers (D360_ALLOWED_RECIPIENTS). If set, only these.
+  // Comma-separated numbers (D360_ALLOWED_RECIPIENTS). Required: with no list, nothing is sent.
   allowedRecipients?: string | undefined;
 };
 
@@ -20,7 +20,8 @@ export function createSender(options: Options = {}): Send {
       .split(",")
       .map((n) => n.trim())
       .filter(Boolean);
-    if (allowed.length > 0 && !allowed.includes(to)) return { ok: false, error: "recipient_not_allowed" };
+    if (allowed.length === 0) return { ok: false, error: "no_allowlist" };
+    if (!allowed.includes(to)) return { ok: false, error: "recipient_not_allowed" };
 
     const apiKey = process.env.D360_API_KEY; // read now, never at import time
     if (!apiKey) return { ok: false, error: "not_configured" };
