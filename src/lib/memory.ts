@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Classification } from "./jev";
 
 export type InboundMessage = {
   waId: string;
@@ -11,6 +12,7 @@ export type SaveResult = {
   conversationId: string;
   messageId: string;
   inserted: boolean; // false when this WhatsApp message id was already saved
+  classified: boolean; // true when the message already has an engine (Jev ran, failed or was skipped)
 };
 
 export type StoredMessage = {
@@ -23,7 +25,12 @@ export type StoredMessage = {
 export type Memory = {
   saveInbound(message: InboundMessage): Promise<SaveResult>;
   getRecentMessages(conversationId: string, limit?: number): Promise<StoredMessage[]>;
+  saveClassification(messageId: string, result: Classification): Promise<void>;
+  // The parent's last earlier message in the same conversation, sent in the last 24 hours.
+  getPreviousParentMessage(conversationId: string, messageId: string, sentAt: Date): Promise<string | null>;
 };
+
+export const PREVIOUS_MESSAGE_WINDOW_HOURS = 24;
 
 // Oldest first. Messages with the same timestamp are ordered by id.
 export function oldestFirst(rows: StoredMessage[]): StoredMessage[] {
@@ -51,6 +58,7 @@ export function createMemory(db: SupabaseClient): Memory {
         conversationId: row.out_conversation_id,
         messageId: row.out_message_id,
         inserted: row.out_inserted,
+        classified: row.out_classified,
       };
     },
 
@@ -64,6 +72,41 @@ export function createMemory(db: SupabaseClient): Memory {
         .limit(limit);
       if (error) throw new Error(`read failed: ${error.code ?? "unknown"}`);
       return oldestFirst((data ?? []) as StoredMessage[]);
+    },
+
+    async saveClassification(messageId, result) {
+      const { error } = await db
+        .from("academy_messages")
+        .update({
+          language: result.language,
+          language_confidence: result.languageConfidence,
+          label: result.label,
+          label_confidence: result.labelConfidence,
+          engine: result.engine,
+          latency_ms: result.latencyMs,
+          input_tokens: result.inputTokens,
+          cost_usd: result.costUsd,
+          classification_error: result.error,
+        })
+        .eq("id", messageId);
+      if (error) throw new Error(`classification save failed: ${error.code ?? "unknown"}`);
+    },
+
+    async getPreviousParentMessage(conversationId, messageId, sentAt) {
+      const since = new Date(sentAt.getTime() - PREVIOUS_MESSAGE_WINDOW_HOURS * 3_600_000);
+      const { data, error } = await db
+        .from("academy_messages")
+        .select("body")
+        .eq("conversation_id", conversationId)
+        .eq("direction", "in")
+        .neq("id", messageId)
+        .gte("sent_at", since.toISOString())
+        .lte("sent_at", sentAt.toISOString())
+        .order("sent_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(1);
+      if (error) throw new Error(`read failed: ${error.code ?? "unknown"}`);
+      return data && data.length > 0 ? (data[0].body as string) : null;
     },
   };
 }

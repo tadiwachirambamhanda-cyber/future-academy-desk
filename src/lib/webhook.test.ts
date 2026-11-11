@@ -13,13 +13,17 @@ function fakeMemory(opts: { fail?: boolean } = {}) {
       if (opts.fail) throw new Error("db down");
       const old = seen.get(m.waMessageId);
       if (old) return { ...old, inserted: false };
-      const r = { conversationId: `c-${m.waId}`, messageId: `m-${seen.size}`, inserted: true };
+      const r = { conversationId: `c-${m.waId}`, messageId: `m-${seen.size}`, inserted: true, classified: false };
       seen.set(m.waMessageId, r);
       saved.push(m);
       return r;
     },
     async getRecentMessages() {
       return [];
+    },
+    async saveClassification() {},
+    async getPreviousParentMessage() {
+      return null;
     },
   };
   return { memory, saved };
