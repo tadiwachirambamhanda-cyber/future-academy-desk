@@ -54,11 +54,11 @@ export type Memory = {
   // The parent's last earlier message in the same conversation, sent in the last 24 hours.
   getPreviousParentMessage(conversationId: string, messageId: string, sentAt: Date): Promise<string | null>;
   // F7: one run per message. True for the first run (or a run that finds a stale claim).
-  claimMessage(conversationId: string, messageId: string): Promise<boolean>;
+  // "claimed": this run answers. "taken": another run has it. "cap": too many replies in 24 hours (recorded as a hand-over by the database).
+  claimMessage(conversationId: string, messageId: string, cap?: number): Promise<"claimed" | "taken" | "cap">;
   updateDecision(messageId: string, patch: DecisionPatch): Promise<void>;
   saveHandover(input: { conversationId: string; messageId: string; reason: string }): Promise<void>;
   saveOutbound(input: { conversationId: string; waMessageId: string | null; body: string; sentAt: Date }): Promise<void>;
-  countOutboundSince(conversationId: string, since: Date): Promise<number>;
   getMessageClassification(messageId: string): Promise<StoredClassification | null>;
 };
 
@@ -141,10 +141,10 @@ export function createMemory(db: SupabaseClient): Memory {
       return data && data.length > 0 ? (data[0].body as string) : null;
     },
 
-    async claimMessage(conversationId, messageId) {
-      const { data, error } = await db.rpc("academy_claim_message", { p_conversation_id: conversationId, p_message_id: messageId });
+    async claimMessage(conversationId, messageId, cap = 20) {
+      const { data, error } = await db.rpc("academy_claim_message", { p_conversation_id: conversationId, p_message_id: messageId, p_cap: cap });
       if (error) throw new Error(`claim failed: ${error.code ?? "unknown"}`);
-      return data === true;
+      return data === "claimed" || data === "cap" ? data : "taken";
     },
 
     async updateDecision(messageId, patch) {
@@ -173,17 +173,6 @@ export function createMemory(db: SupabaseClient): Memory {
         sent_at: sentAt.toISOString(),
       });
       if (error) throw new Error(`outgoing save failed: ${error.code ?? "unknown"}`);
-    },
-
-    async countOutboundSince(conversationId, since) {
-      const { count, error } = await db
-        .from("academy_messages")
-        .select("id", { count: "exact", head: true })
-        .eq("conversation_id", conversationId)
-        .eq("direction", "out")
-        .gte("sent_at", since.toISOString());
-      if (error) throw new Error(`count failed: ${error.code ?? "unknown"}`);
-      return count ?? 0;
     },
 
     async getMessageClassification(messageId) {

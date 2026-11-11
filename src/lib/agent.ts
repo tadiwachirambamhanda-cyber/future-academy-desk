@@ -7,8 +7,7 @@ import type { Classification } from "./jev";
 import type { Send } from "./send";
 import { writeReply, type WriteInput, type WriteResult } from "./writer";
 
-export const REPLY_CAP = 20; // replies (holding replies included) per conversation per 24 hours
-export const CAP_WINDOW_HOURS = 24;
+export const REPLY_CAP = 20; // messages answered (holding replies included) per conversation per 24 hours
 
 export type AgentItem = { conversationId: string; messageId: string; waId: string; body: string; sentAt: Date };
 
@@ -35,8 +34,15 @@ export async function runAgent(item: AgentItem, deps: AgentDeps): Promise<void> 
 
   try {
     // 1. Claim the message. Only one run answers it, however many times it is delivered.
-    if (!(await memory.claimMessage(item.conversationId, item.messageId))) {
+    // The same step enforces the reply cap, atomically (a loop must not run up cost).
+    const claim = await memory.claimMessage(item.conversationId, item.messageId, REPLY_CAP);
+    if (claim === "taken") {
       log("agent_skipped", { reason: "already_claimed" });
+      return;
+    }
+    if (claim === "cap") {
+      await memory.saveHandover({ conversationId: item.conversationId, messageId: item.messageId, reason: "cap_reached" });
+      log("agent_handover", { reason: "cap_reached" });
       return;
     }
 
@@ -54,15 +60,6 @@ export async function runAgent(item: AgentItem, deps: AgentDeps): Promise<void> 
     }
     const readerCost = cls.engine === "claude" && stored?.engine !== "claude" ? (cls.costUsd ?? 0) : 0;
     const language = expectedLanguage(cls.language);
-
-    // 3. Reply cap: a loop must not run up cost.
-    const since = new Date(now().getTime() - CAP_WINDOW_HOURS * 3_600_000);
-    if ((await memory.countOutboundSince(item.conversationId, since)) >= REPLY_CAP) {
-      await memory.saveHandover({ conversationId: item.conversationId, messageId: item.messageId, reason: "cap_reached" });
-      await memory.updateDecision(item.messageId, { status: "needs_person", reason: "cap_reached", language, label: cls.label, labelConfidence: cls.labelConfidence });
-      log("agent_handover", { reason: "cap_reached" });
-      return;
-    }
 
     // 4. Decide, in code.
     const decision = decide({

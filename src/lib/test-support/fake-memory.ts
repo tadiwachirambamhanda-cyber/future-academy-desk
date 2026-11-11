@@ -7,10 +7,11 @@ export type FakeState = {
   decisions: Map<string, DecisionPatch & { claimedAt: number }>;
   handovers: { conversationId: string; messageId: string; reason: string }[];
   classifications: Map<string, Classification>;
+  conversationOf: Map<string, string>; // message id -> conversation id, for the cap
 };
 
 export function fakeMemory(opts: { failClaim?: boolean } = {}) {
-  const state: FakeState = { messages: [], decisions: new Map(), handovers: [], classifications: new Map() };
+  const state: FakeState = { messages: [], decisions: new Map(), handovers: [], classifications: new Map(), conversationOf: new Map() };
   const seen = new Map<string, string>();
   let n = 0;
   const memory: Memory = {
@@ -31,11 +32,18 @@ export function fakeMemory(opts: { failClaim?: boolean } = {}) {
     async getPreviousParentMessage() {
       return null;
     },
-    async claimMessage(_c, messageId) {
+    async claimMessage(conversationId, messageId, cap = 20) {
       if (opts.failClaim) throw new Error("db down");
-      if (state.decisions.has(messageId)) return false;
+      if (state.decisions.has(messageId)) return "taken";
+      const recent = [...state.decisions.entries()].filter(([id, d]) => state.conversationOf.get(id) === conversationId && d.claimedAt > Date.now() - 24 * 3_600_000).length;
+      if (recent >= cap) {
+        state.decisions.set(messageId, { status: "needs_person", reason: "cap_reached", claimedAt: Date.now() });
+        state.conversationOf.set(messageId, conversationId);
+        return "cap";
+      }
       state.decisions.set(messageId, { status: "claimed", claimedAt: Date.now() });
-      return true;
+      state.conversationOf.set(messageId, conversationId);
+      return "claimed";
     },
     async updateDecision(messageId, patch) {
       state.decisions.set(messageId, { ...(state.decisions.get(messageId) ?? { claimedAt: Date.now() }), ...patch });
@@ -45,9 +53,6 @@ export function fakeMemory(opts: { failClaim?: boolean } = {}) {
     },
     async saveOutbound({ conversationId, waMessageId, body, sentAt }) {
       state.messages.push({ id: `o-${++n}`, direction: "out", body, sent_at: sentAt.toISOString(), conversationId, waMessageId });
-    },
-    async countOutboundSince(conversationId, since) {
-      return state.messages.filter((x) => x.conversationId === conversationId && x.direction === "out" && Date.parse(x.sent_at) >= since.getTime()).length;
     },
     async getMessageClassification(messageId): Promise<StoredClassification | null> {
       const c = state.classifications.get(messageId);

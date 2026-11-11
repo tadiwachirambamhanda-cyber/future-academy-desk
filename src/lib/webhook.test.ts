@@ -34,11 +34,10 @@ function fakeMemory(opts: { fail?: boolean; previous?: string | null } = {}) {
     async getPreviousParentMessage() {
       return opts.previous ?? null;
     },
-    async claimMessage() { return true; },
+    async claimMessage() { return "claimed" as const; },
     async updateDecision() {},
     async saveHandover() {},
     async saveOutbound() {},
-    async countOutboundSince() { return 0; },
     async getMessageClassification() { return null; },
   };
   return { memory, saved, classifications };

@@ -128,22 +128,20 @@ describe("F7: the agent answers, or hands over, and logs", () => {
     expect(t.sent).toHaveLength(1);
   });
 
-  it(`stops at ${REPLY_CAP} replies in 24 hours: a hand-over (cap_reached), nothing sent`, async () => {
+  it(`stops at ${REPLY_CAP} messages in 24 hours: a hand-over (cap_reached), nothing sent (codex #4)`, async () => {
     const t = await setup("fees?", cls());
-    const now = new Date("2026-11-12T12:00:00Z");
-    for (let i = 0; i < REPLY_CAP; i++) await t.memory.saveOutbound({ conversationId: t.item.conversationId, waMessageId: null, body: "x", sentAt: new Date(now.getTime() - 3600_000) });
-    await runAgent(t.item, { memory: t.memory, send: t.send, write: writes("USD 450"), now: () => now });
+    for (let k = 0; k < REPLY_CAP; k++) await t.memory.claimMessage(t.item.conversationId, `earlier-${k}`, REPLY_CAP);
+    await runAgent(t.item, { memory: t.memory, send: t.send, write: writes("USD 450") });
     expect(t.send).not.toHaveBeenCalled();
-    expect(t.state.handovers[0].reason).toBe("cap_reached");
+    expect(t.state.handovers.map((h) => h.reason)).toEqual(["cap_reached"]);
     expect(decision(t.state, t.item.messageId)).toMatchObject({ status: "needs_person", reason: "cap_reached" });
   });
 
-  it("replies older than 24 hours do not count toward the cap", async () => {
-    const t = await setup("fees?", cls());
-    const now = new Date("2026-11-12T12:00:00Z");
-    for (let i = 0; i < REPLY_CAP; i++) await t.memory.saveOutbound({ conversationId: t.item.conversationId, waMessageId: null, body: "x", sentAt: new Date(now.getTime() - 30 * 3600_000) });
-    await runAgent(t.item, { memory: t.memory, send: t.send, write: writes("USD 450"), now: () => now });
-    expect(t.send).toHaveBeenCalledTimes(1);
+  it("messages that arrive together cannot all slip past the cap (codex #4)", async () => {
+    const { memory } = fakeMemory();
+    const results = await Promise.all(Array.from({ length: REPLY_CAP + 5 }, (_, k) => memory.claimMessage("c-1", `m-${k}`, REPLY_CAP)));
+    expect(results.filter((r) => r === "claimed")).toHaveLength(REPLY_CAP);
+    expect(results.filter((r) => r === "cap")).toHaveLength(5);
   });
 
   it("a failed send is made visible: send_error on the decision and a send_failed hand-over", async () => {
