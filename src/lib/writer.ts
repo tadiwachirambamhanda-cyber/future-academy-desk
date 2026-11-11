@@ -36,7 +36,7 @@ function system(handbook: string, language: ReplyLanguage): string {
     "Use ONLY the handbook below. If it does not answer the parent's question, set answerable_from_handbook to false and write a short polite note saying you will pass it to the admissions office. Never guess.",
     `Write the reply in ${LANGUAGE_NAMES[language]} and set language to "${language}". Warm, short and human, like a helpful person. WhatsApp plain text: no markdown headings, and use short lines starting with "- " for lists of fees or times.`,
     "Rules you must follow:",
-    "- Give only dollar amounts that are in the handbook, and the right amount for the level the parent asked about.",
+    "- Give only dollar amounts that are in the handbook, and the right amount for the level the parent asked about. Use no other numbers (dates, ages, sizes, times) than the ones in the handbook or the parent's own words. Do not number your lines.",
     "- Answer only what the parent asked, in about 3 to 6 short lines. Do not list fees or facts they did not ask about.",
     "- Never promise, guarantee or confirm a place, and never use the words guarantee, guaranteed or guarantees. Do not say what any fee secures or reserves. If a place comes up, say only that the admissions office can confirm a place, in writing.",
     "- Visits: offer only Monday to Friday at 09:00, 11:00 or 14:00, and say the admissions office will confirm. Never say a visit is confirmed or booked. If the parent asks for a day or time outside these, say that day or time is not available WITHOUT repeating it (for example \"that time\" or \"weekends\"), and offer the valid times. Write no other clock time in a visit reply.",
@@ -101,8 +101,9 @@ export async function writeReply(input: WriteInput): Promise<WriteResult> {
 
     lastChecks = checkReply(
       parsed.reply,
-      { label: input.label, expectedLanguage: input.language, declaredLanguage: parsed.language, parentMessage: input.parentMessage },
+      { label: input.label, expectedLanguage: input.language, declaredLanguage: parsed.language, parentMessage: input.parentMessage, conversation: input.history.map((m) => m.body) },
       allowed,
+      handbook,
     );
     if (lastChecks.ok) {
       finish();
