@@ -57,13 +57,13 @@ export function parseWebhook(body: unknown): ParsedWebhook {
       ignored += 1;
       continue;
     }
-    const seconds = Number(text.data.timestamp);
-    if (!Number.isFinite(seconds)) throw new WebhookParseError("message timestamp is not a number");
+    const sentAt = new Date(Number(text.data.timestamp) * 1000);
+    if (Number.isNaN(sentAt.getTime())) throw new WebhookParseError("message timestamp is not a valid date");
     messages.push({
       waId: text.data.from,
       waMessageId: text.data.id,
       body: text.data.text.body,
-      sentAt: new Date(seconds * 1000),
+      sentAt,
     });
   }
   return { messages, ignored };

@@ -116,3 +116,15 @@ describe("POST /api/whatsapp", () => {
     expect(all).not.toContain("263770000002");
   });
 });
+
+describe("POST /api/whatsapp with an impossible timestamp (codex #1)", () => {
+  it("answers 400, not 500, so 360dialog does not retry", async () => {
+    const { memory, saved } = fakeMemory();
+    const bad = {
+      messages: [{ from: "263770000002", id: "wamid.BAD", timestamp: "1e20", type: "text", text: { body: "Hi" } }],
+    };
+    const res = await handleWebhook(post(JSON.stringify(bad)), { memory, secret: SECRET });
+    expect(res.status).toBe(400);
+    expect(saved).toHaveLength(0);
+  });
+});

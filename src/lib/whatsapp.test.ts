@@ -45,4 +45,9 @@ describe("parseWebhook", () => {
     expect(() => parseWebhook(flat([{ ...text, text: {} }]))).toThrow(WebhookParseError);
     expect(() => parseWebhook(flat([{ ...text, timestamp: "soon" }]))).toThrow(WebhookParseError);
   });
+
+  it("rejects a timestamp that is a number but not a real date (codex #1)", () => {
+    expect(() => parseWebhook(flat([{ ...text, timestamp: "1e20" }]))).toThrow(WebhookParseError);
+    expect(() => parseWebhook(flat([{ ...text, timestamp: 9e15 }]))).toThrow(WebhookParseError);
+  });
 });
