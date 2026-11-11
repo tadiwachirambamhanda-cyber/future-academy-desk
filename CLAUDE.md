@@ -11,7 +11,8 @@ Message in (360dialog webhook) -> Jev classifies the question -> code decides (r
 - `npm run test:db`: database tests, needs the Supabase keys in `.env.local`
 - `npm run cases`: runs the made-up test messages against the real Jev (needs `TYPESAFE_API_KEY`, costs a fraction of a cent, not part of CI); writes `cases/report.md`
 - `node --env-file=.env.local scripts/register-webhook.mjs`: points the 360dialog sandbox at the live webhook
-- Database: the `liwan-desk` Supabase project, tables prefixed `academy_`. Live address: https://future-academy-desk.vercel.app/api/whatsapp
+- `npm run cases:agent`: runs the whole agent end to end (real Jev and Claude, pretend sender and database); writes `cases/agent-report.md`
+- Database: the `future-academy-desk` Supabase project (Mumbai), tables prefixed `academy_`. Live address: https://future-academy-desk.vercel.app/api/whatsapp
 
 ## Rules
 - Code decides, models propose. The rules are in `data/rules.md` (R1 to R9). Each one lives in code with a unit test that names its id.
