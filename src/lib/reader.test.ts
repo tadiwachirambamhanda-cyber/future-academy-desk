@@ -25,6 +25,11 @@ describe("F3: Claude reads Shona and Ndebele messages", () => {
     expect((await readWithClaude("x", { ask: ask(null) })).engine).toBe("error");
     expect(ReaderSchema.safeParse({ ...good, money_exception: "yes" }).success).toBe(false);
   });
+  it("rejects a confidence outside 0 to 1 and routes to a person (codex #3)", async () => {
+    for (const bad of [5, -1, 1.01]) {
+      expect(await readWithClaude("x", { ask: ask({ ...good, confidence: bad }) })).toMatchObject({ engine: "error", label: null, error: "invalid_answer" });
+    }
+  });
   it("never throws when Claude fails", async () => {
     const boom: AskClaude = async () => { throw new Error("down"); };
     expect(await readWithClaude("x", { ask: boom })).toMatchObject({ engine: "error", label: null });

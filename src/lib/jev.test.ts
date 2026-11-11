@@ -21,9 +21,11 @@ describe("classifyMessage", () => {
     expect(r.labelConfidence).toBeCloseTo(JEV_MIN_CONFIDENCE - 0.01);
   });
 
-  it("clamps a confidence outside 0 to 1", async () => {
-    const r = await classifyMessage("fees?", { ask: fake(answer("fees", 1.7)) });
-    expect(r.labelConfidence).toBe(1);
+  it("rejects a confidence outside 0 to 1 instead of using it (codex #3)", async () => {
+    for (const bad of [1.7, -0.2, 5]) {
+      const r = await classifyMessage("fees?", { ask: fake(answer("fees", bad)) });
+      expect(r).toMatchObject({ engine: "error", label: null, error: "invalid_answer" });
+    }
   });
 
   it("leaves the label empty when Jev says the message is Shona, Ndebele or another language", async () => {

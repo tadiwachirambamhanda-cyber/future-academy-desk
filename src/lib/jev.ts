@@ -77,11 +77,9 @@ export type JevAnswers = {
 
 export type AskJev = (state: Record<string, string>) => Promise<JevAnswers>;
 
-const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
-
 const AnswersSchema = z.object({
-  intent: z.object({ choice: z.enum(Object.keys(QUESTIONS.intent.options) as [Intent, ...Intent[]]), confidence: z.number() }),
-  language: z.object({ choice: z.enum(Object.keys(QUESTIONS.language.options) as [Language, ...Language[]]), confidence: z.number() }),
+  intent: z.object({ choice: z.enum(Object.keys(QUESTIONS.intent.options) as [Intent, ...Intent[]]), confidence: z.number().min(0).max(1) }),
+  language: z.object({ choice: z.enum(Object.keys(QUESTIONS.language.options) as [Language, ...Language[]]), confidence: z.number().min(0).max(1) }),
   inputTokens: z.number().nullable(),
 });
 
@@ -150,8 +148,8 @@ export async function classifyMessage(text: string, options: ClassifyOptions = {
 
   // 4. Code judges.
   const a = parsed.data;
-  const languageConfidence = clamp01(a.language.confidence);
-  const intentConfidence = clamp01(a.intent.confidence);
+  const languageConfidence = a.language.confidence;
+  const intentConfidence = a.intent.confidence;
   const isEnglish = a.language.choice === "english" && languageConfidence >= JEV_MIN_CONFIDENCE;
   const label = !isEnglish ? null : intentConfidence >= JEV_MIN_CONFIDENCE ? a.intent.choice : "unsure";
 

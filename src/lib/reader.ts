@@ -11,7 +11,7 @@ const LanguageEnum = z.enum(Object.keys(QUESTIONS.language.options) as [Language
 export const ReaderSchema = z.object({
   language: LanguageEnum,
   intent: IntentEnum,
-  confidence: z.number(),
+  confidence: z.number().min(0).max(1),
   money_exception: z.boolean(),
 });
 
@@ -47,7 +47,7 @@ export async function readWithClaude(text: string, options: ReadOptions = {}): P
     const parsed = call.parsed ? ReaderSchema.safeParse(call.parsed) : null;
     if (!parsed || !parsed.success) return fail("invalid_answer");
     const a = parsed.data;
-    const confidence = Math.min(1, Math.max(0, a.confidence));
+    const confidence = a.confidence;
     return {
       engine: "claude",
       language: a.language,
