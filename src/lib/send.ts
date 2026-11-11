@@ -18,7 +18,7 @@ export function createSender(options: Options = {}): Send {
     if (!/^\d{6,15}$/.test(to)) return { ok: false, error: "bad_recipient" };
     const allowed = (options.allowedRecipients ?? process.env.D360_ALLOWED_RECIPIENTS ?? "")
       .split(",")
-      .map((n) => n.trim())
+      .map((n) => n.replace(/\D/g, "")) // "+971 54 ..." and "97154..." are the same number
       .filter(Boolean);
     if (allowed.length === 0) return { ok: false, error: "no_allowlist" };
     if (!allowed.includes(to)) return { ok: false, error: "recipient_not_allowed" };

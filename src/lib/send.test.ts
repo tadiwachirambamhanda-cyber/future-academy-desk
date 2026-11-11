@@ -43,6 +43,14 @@ describe("F7: sending", () => {
     expect(await createSender({ fetchImpl: f as unknown as typeof fetch })("263770000002", "hi")).toEqual({ ok: false, error: "no_allowlist" });
     expect(f).not.toHaveBeenCalled();
   });
+  it("accepts the allow-list written like a phone number, with a plus and spaces", async () => {
+    vi.stubEnv("D360_API_KEY", "k");
+    const f = okFetch();
+    const send = createSender({ fetchImpl: f as unknown as typeof fetch, allowedRecipients: "+263 77 000 0002, +263 77 000 0003" });
+    expect((await send("263770000002", "hi")).ok).toBe(true);
+    expect((await send("263770000003", "hi")).ok).toBe(true);
+    expect(await send("263770000009", "hi")).toEqual({ ok: false, error: "recipient_not_allowed" });
+  });
   it("reads the allow-list from D360_ALLOWED_RECIPIENTS", async () => {
     vi.stubEnv("D360_API_KEY", "k");
     vi.stubEnv("D360_ALLOWED_RECIPIENTS", "263770000002");
