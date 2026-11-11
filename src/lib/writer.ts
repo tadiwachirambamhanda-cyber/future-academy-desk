@@ -1,5 +1,6 @@
 // F5: Claude writes the wording; code decides whether it may go out.
 import { z } from "zod";
+import { escapeForDataBlock } from "./data-block";
 import { costOf, writerModel, type AskClaude, askClaudeForReal } from "./claude";
 import { allowedAmounts, getHandbookText } from "./handbook";
 import { checkReply, type CheckResult, type HandoverReason, type ReplyLanguage } from "./rules";
@@ -52,12 +53,12 @@ function system(handbook: string, language: ReplyLanguage): string {
 function userBlock(input: WriteInput, failures: string[]): string {
   const history = input.history
     .slice(-10)
-    .map((m) => `${m.direction === "in" ? "Parent" : "School"}: ${m.body.slice(0, 600)}`)
+    .map((m) => `${m.direction === "in" ? "Parent" : "School"}: ${escapeForDataBlock(m.body.slice(0, 600))}`)
     .join("\n");
   const retry = failures.length
     ? `\n\nYour previous reply failed these checks, so write it again and fix every one: ${failures.join("; ")}.`
     : "";
-  return `<conversation_so_far>\n${history || "(none)"}\n</conversation_so_far>\n\n<topic>${input.label}</topic>\n\n<parent_message>\n${input.parentMessage.slice(0, 1000)}\n</parent_message>${retry}`;
+  return `<conversation_so_far>\n${history || "(none)"}\n</conversation_so_far>\n\n<topic>${input.label}</topic>\n\n<parent_message>\n${escapeForDataBlock(input.parentMessage.slice(0, 1000))}\n</parent_message>${retry}`;
 }
 
 // Never throws. At most two Claude calls: the first try and one fix.

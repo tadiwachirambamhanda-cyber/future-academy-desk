@@ -1,6 +1,7 @@
 // F3: Claude reads the messages Jev cannot (Shona, Ndebele, mixed or unsure language).
 // It answers the same two questions as Jev, with output checked by zod. Code judges the confidence.
 import { z } from "zod";
+import { escapeForDataBlock } from "./data-block";
 import { costOf, readerModel, type AskClaude, askClaudeForReal } from "./claude";
 import { JEV_MAX_TEXT_CHARS, JEV_MIN_CONFIDENCE, QUESTIONS, type Classification, type Intent, type Language } from "./jev";
 
@@ -38,8 +39,8 @@ export async function readWithClaude(text: string, options: ReadOptions = {}): P
     latencyMs: ms(), inputTokens: null, costUsd: null, error,
   });
 
-  const earlier = options.earlierMessage ? `<earlier_message>\n${options.earlierMessage.slice(0, JEV_MAX_TEXT_CHARS)}\n</earlier_message>\n\n` : "";
-  const user = `${earlier}<parent_message>\n${text.slice(0, JEV_MAX_TEXT_CHARS)}\n</parent_message>`;
+  const earlier = options.earlierMessage ? `<earlier_message>\n${escapeForDataBlock(options.earlierMessage.slice(0, JEV_MAX_TEXT_CHARS))}\n</earlier_message>\n\n` : "";
+  const user = `${earlier}<parent_message>\n${escapeForDataBlock(text.slice(0, JEV_MAX_TEXT_CHARS))}\n</parent_message>`;
 
   try {
     const call = await (options.ask ?? askClaudeForReal)({ schema: ReaderSchema, system: system(), user, model: readerModel() });
