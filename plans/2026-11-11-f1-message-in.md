@@ -79,3 +79,40 @@ A fresh reviewer found 7 issues plus 2 small ones. All were accepted and the pla
 - The fixture is scrubbed of the number, name and ids, with a test that fails if real values remain.
 - A `lint` script is added, and the project is generated in a scratch folder because the folder is not empty.
 - Dismissed: nothing.
+
+## Changes from the plan
+- Step 2: the Supabase free plan allows only 2 active projects (Havenly and liwan-desk), so no new project could be created. By the owner's choice the tables live in the existing `liwan-desk` project (`cidrjxgkplcukxnobrhm`, Mumbai). Its `conversations` and `messages` tables already exist, so the school's are named `academy_conversations`, `academy_messages` and `academy_save_inbound`. They are locked the same way (checked: row-level security on, `anon` and `authenticated` have no privileges, only `service_role` can use them). The two demos share one project but no tables.
+- Step 6: added `scripts/register-webhook.mjs`, a small script that registers the webhook address and secret header with the 360dialog sandbox, reading the keys from `.env.local` without printing them. The live address is `https://future-academy-desk.vercel.app/api/whatsapp`.
+- Step 7: the sample message `src/lib/fixtures/d360-text-message.json` was written by hand in the 360dialog Cloud API shape with made-up values, not copied from a real message. The webhook does not log payloads (by design, to keep numbers and text out of logs), so the real payload was never captured. The real "Hello" and "Hello again" from the sandbox phone were parsed and saved correctly, which shows the parser handles the real shape. In place of a scrubbed copy, `src/lib/fixtures.db.test.ts` fails if the sample holds any phone number stored in the database.
+
+## Verification
+Run on 2026-11-11.
+
+| Check | Result |
+|---|---|
+| `npm run typecheck`, `npm run lint` | pass, no errors |
+| `npm test` (3 files) | 18 of 18 pass: parser (7), webhook (8), ordering (3) |
+| `npm run build` | passes; the code reads no keys when it loads |
+| `npm run test:db` | 6 of 6 pass: save and read back in order, same message id twice gives one row, two at once gives one conversation, last 10 only, rows default to synthetic, sample message holds no stored number |
+| Public (anon) key: select and insert on both tables, and the save function | all refused with 401 "permission denied"; privileges for `anon` and `authenticated` are false; row-level security on |
+| Plain request to the live webhook from outside, no or wrong secret | 401 from our code, not a Vercel login page |
+| Webhook registered with the 360dialog sandbox | status 200 |
+| Real: "Hello" from the sandbox phone | one `messages` row, direction `in`, `is_synthetic` true, in one `conversations` row (F1 done check) |
+| Real: "Hello" then "Hello again" | one conversation, two `in` messages, in `sent_at` order |
+| Wrong secret, oversize body (also without Content-Length), broken body, database failure with no text or number in the log | covered by unit tests, all pass |
+
+Not checked live: the 360dialog retry after a 500 (covered by the duplicate-message tests).
+
+## Codex review
+The project was new and still on `main`, so Codex reviewed the whole repository against an empty project.
+
+**Round 1: VERDICT: FINDINGS(1)**
+1. MINOR, `src/lib/whatsapp.ts` timestamp check: an impossible timestamp such as `1e20` passed the parser, crashed the save and made the webhook answer 500, so 360dialog would retry. **Fixed** (commit `fix: reject a message whose timestamp is not a real date (codex #1)`): the parser rejects it and the webhook answers 400. Tests added in `whatsapp.test.ts` and `webhook.test.ts`.
+
+The agent checks (injection, approval, model output, live tools, secrets to the browser, personal data in logs) found nothing: F1 has no model, no sending and logs only counts.
+
+**Round 2: VERDICT: FINDINGS(1)**
+2. MINOR, `src/lib/whatsapp.ts` timestamp check: an empty timestamp became 0 and was saved as 1 January 1970, which would put the message first in the history. **Fixed** (commit `fix: accept only whole-number timestamps, not empty ones (codex #2)`): the parser accepts only a string of digits or a non-negative number. Tests added.
+
+**Round 3: VERDICT: PASS**
+No findings. Codex could not run the exact diff command (the empty-tree object is not in this checkout), so it read the repository files directly. Nothing was dismissed.

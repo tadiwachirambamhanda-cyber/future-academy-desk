@@ -6,7 +6,7 @@ Source: `docs/prd.md`. Build order follows the solution shape: message in, under
 
 | ID | Feature (what a person can do or see) | Done check | AC | Version | Status |
 |---|---|---|---|---|---|
-| F1 | A WhatsApp message sent to the sandbox is received and saved, with the conversation history, in Supabase | I send "Hello" from the sandbox phone and a new row appears in `messages` linked to a `conversations` row, marked `is_synthetic` | AC5 | v1 | not started |
+| F1 | A WhatsApp message sent to the sandbox is received and saved, with the conversation history, in Supabase | I send "Hello" from the sandbox phone and a new row appears in `messages` linked to a `conversations` row, marked `is_synthetic` | AC5 | v1 | built, not merged |
 | F2 | Each English message is sorted by Jev into a label (fees, term dates, visit, admissions, uniform, transport, complaint, health, not in handbook, bypass attempt) with a confidence | `npm run cases` shows the Jev label and confidence for the English cases in T01 to T04, and each message row stores label, confidence and latency | AC1, AC2, AC3, AC4 | v1 | not started |
 | F3 | A Shona or Ndebele message is recognised and sorted by Claude into the same labels, with a confidence | I send "Mari yeGrade 3 inoita marii?" and the message row shows language `sn`, label `fees` and a confidence; an Ndebele fees question shows language `nd` and label `fees` | AC1 | v1 | not started |
 | F4 | The rules R1 to R9 decide, in code, what the agent may do for each label | `npm run cases` shows one passing unit test per rule, each named with its id (R1 to R9) | AC1, AC2, AC3, AC4 | v1 | not started |
