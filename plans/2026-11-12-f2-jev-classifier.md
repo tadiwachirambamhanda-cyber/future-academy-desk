@@ -104,3 +104,6 @@ Two cases did not pass every repeat, both in the held-out set, and no tuning was
 - T31, "Is there a Saturday sports programme?": `school_day` on all three repeats, expected `other_school_question`. This case may be wrong: a sports programme is arguably close to after-school clubs. Code decides later (F4) whether the handbook answers it, so the label does not decide the reply. I have left the case as it is for you to decide.
 
 **Question 3 (should Claude check the language of every message?):** the results say no for now. Jev sent all 15 Shona, Ndebele and mixed messages to the non-English path, 5 of them without the word list. 15 messages is a small sample, so this stays open for F3.
+
+## Codex review
+**Round 1: VERDICT: PASS.** No findings, nothing fixed, nothing dismissed. Codex read the plan, `docs/prd.md`, `data/rules.md` and the full `main...HEAD` diff, and checked the agent items (prompt injection, actions without approval, unchecked model output, live tools, secrets reaching the browser, personal data in logs).
