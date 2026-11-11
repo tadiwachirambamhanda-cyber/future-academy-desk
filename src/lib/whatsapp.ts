@@ -6,7 +6,7 @@ export class WebhookParseError extends Error {}
 const textMessage = z.object({
   from: z.string().min(1),
   id: z.string().min(1),
-  timestamp: z.union([z.string(), z.number()]),
+  timestamp: z.union([z.string().regex(/^\d+$/), z.number().nonnegative()]),
   type: z.literal("text"),
   text: z.object({ body: z.string() }),
 });
