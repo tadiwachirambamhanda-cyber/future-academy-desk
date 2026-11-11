@@ -5,6 +5,13 @@ Project type: AI solution (a WhatsApp enquiry agent for Future Academy Zimbabwe,
 ## Shape
 Message in (360dialog webhook) -> Jev classifies the question -> code decides (rules in `src/lib/rules/`, facts from `data/school-handbook.md`) -> Claude writes the wording -> code checks the reply -> sent, or handed to a person. Supabase stores conversations, messages, hand-overs and the decision log, and is the agent's memory.
 
+## Commands
+- `npm run dev`, `npm run build`, `npm run lint`, `npm run typecheck`
+- `npm test`: unit tests, no keys needed
+- `npm run test:db`: database tests, needs the Supabase keys in `.env.local`
+- `node --env-file=.env.local scripts/register-webhook.mjs`: points the 360dialog sandbox at the live webhook
+- Database: the `liwan-desk` Supabase project, tables prefixed `academy_`. Live address: https://future-academy-desk.vercel.app/api/whatsapp
+
 ## Rules
 - Code decides, models propose. The rules are in `data/rules.md` (R1 to R8). Each one lives in code with a unit test that names its id.
 - Facts come only from `data/school-handbook.md`. If it is not in the handbook, say so and hand over. Never guess.
