@@ -12,6 +12,27 @@ type Options = {
   allowedRecipients?: string | undefined;
 };
 
+// A short reason from 360dialog's error body, so a failed send can be understood from the decision log.
+// Phone numbers and long ids are redacted, and it is cut short.
+async function providerReason(res: Response): Promise<string> {
+  try {
+    const raw = await res.text();
+    let text = raw;
+    try {
+      const body = JSON.parse(raw) as { error?: { message?: string; error_data?: { details?: string } }; errors?: { title?: string; details?: string }[]; meta?: { developer_message?: string } };
+      text = body.error?.error_data?.details ?? body.error?.message ?? body.errors?.[0]?.details ?? body.errors?.[0]?.title ?? body.meta?.developer_message ?? raw;
+    } catch {
+      // not JSON: keep the plain text
+    }
+    const key = process.env.D360_API_KEY;
+    if (key) text = text.split(key).join("[key]");
+    const clean = `${res.statusText} ${text}`.replace(/\d{6,}/g, "[number]").replace(/\s+/g, " ").trim().slice(0, 200);
+    return clean ? `: ${clean}` : "";
+  } catch {
+    return "";
+  }
+}
+
 export function createSender(options: Options = {}): Send {
   return async (to, text) => {
     // Numbers only: this keeps a message from steering the request.
@@ -34,7 +55,7 @@ export function createSender(options: Options = {}): Send {
         body: JSON.stringify({ messaging_product: "whatsapp", recipient_type: "individual", to, type: "text", text: { body: text } }),
         signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
       });
-      if (!res.ok) return { ok: false, error: `http_${res.status}` };
+      if (!res.ok) return { ok: false, error: `http_${res.status}${await providerReason(res)}` };
       const body = (await res.json().catch(() => null)) as { messages?: { id?: string }[] } | null;
       return { ok: true, waMessageId: body?.messages?.[0]?.id ?? null };
     } catch (err) {

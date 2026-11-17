@@ -58,13 +58,19 @@ describe("F7: sending", () => {
     expect((await createSender({ fetchImpl: f as unknown as typeof fetch })("263770000002", "hi")).ok).toBe(true);
     expect(await createSender({ fetchImpl: f as unknown as typeof fetch })("263770000009", "hi")).toEqual({ ok: false, error: "recipient_not_allowed" });
   });
+  it("keeps a short, number-free reason from 360dialog when a send is refused", async () => {
+    vi.stubEnv("D360_API_KEY", "k");
+    const refused = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ error: { message: "Recipient 263770000002 is not in the allowed list for this sandbox" } }), { status: 403 }));
+    const r = await createSender({ fetchImpl: refused as unknown as typeof fetch, allowedRecipients: ALLOWED })("263770000002", "hi");
+    expect(r).toEqual({ ok: false, error: "http_403: Recipient [number] is not in the allowed list for this sandbox" });
+  });
   it("fails safely with no key, empty text, an HTTP error or a network error", async () => {
     const f = okFetch();
     expect(await createSender({ fetchImpl: f as unknown as typeof fetch, allowedRecipients: ALLOWED })("263770000002", "hi")).toEqual({ ok: false, error: "not_configured" });
     vi.stubEnv("D360_API_KEY", "k");
     expect(await createSender({ fetchImpl: f as unknown as typeof fetch, allowedRecipients: ALLOWED })("263770000002", "  ")).toEqual({ ok: false, error: "empty_text" });
     const bad = vi.fn<typeof fetch>(async () => new Response("no", { status: 401 }));
-    expect(await createSender({ fetchImpl: bad as unknown as typeof fetch, allowedRecipients: ALLOWED })("263770000002", "hi")).toEqual({ ok: false, error: "http_401" });
+    expect(await createSender({ fetchImpl: bad as unknown as typeof fetch, allowedRecipients: ALLOWED })("263770000002", "hi")).toEqual({ ok: false, error: "http_401: no" });
     const boom = vi.fn<typeof fetch>(async () => { throw new TypeError("network"); });
     expect(await createSender({ fetchImpl: boom as unknown as typeof fetch, allowedRecipients: ALLOWED })("263770000002", "hi")).toEqual({ ok: false, error: "TypeError" });
   });
