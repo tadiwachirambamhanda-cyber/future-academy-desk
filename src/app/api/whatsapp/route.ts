@@ -1,5 +1,6 @@
 import { getDb } from "@/lib/db";
 import { createMemory } from "@/lib/memory";
+import { classifyMessage } from "@/lib/jev";
 import { handleWebhook } from "@/lib/webhook";
 
 export async function POST(request: Request) {
@@ -9,5 +10,6 @@ export async function POST(request: Request) {
       return createMemory(getDb());
     },
     secret: process.env.D360_WEBHOOK_SECRET,
+    classify: classifyMessage,
   });
 }

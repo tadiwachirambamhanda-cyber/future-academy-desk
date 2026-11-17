@@ -13,7 +13,7 @@ Copy this file into any app that uses Jev, saved as `docs/jev-rules.md`. Claude 
 
 ## Setup
 
-- SDK `@typesafe-ai/sdk` (0.6.0, Node 20 or newer). Model string `jev-1.13.0`, pinned in code.
+- SDK `@typesafe-ai/sdk` (0.7.0, Node 20 or newer; this project uses 0.7.0, the version already working in liwan-desk). Model string `jev-1.13.0`, pinned in code.
 - The key lives in `TYPESAFE_API_KEY`, server side only. Never give it a `NEXT_PUBLIC_` prefix.
 
 ## Questions
