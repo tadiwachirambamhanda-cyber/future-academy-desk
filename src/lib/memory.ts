@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Classification } from "./jev";
 
@@ -22,12 +23,43 @@ export type StoredMessage = {
   sent_at: string;
 };
 
+export type StoredClassification = {
+  engine: "jev" | "claude" | "error" | "skipped" | null;
+  label: string | null;
+  labelConfidence: number | null;
+  language: string | null;
+};
+
+export type DecisionPatch = Partial<{
+  status: "claimed" | "answered" | "needs_person" | "no_reply";
+  reason: string | null;
+  language: string | null;
+  label: string | null;
+  labelConfidence: number | null;
+  checks: unknown;
+  fixAttempted: boolean;
+  model: string | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  costUsd: number | null;
+  latencyMs: number | null;
+  sent: boolean;
+  sendError: string | null;
+}>;
+
 export type Memory = {
   saveInbound(message: InboundMessage): Promise<SaveResult>;
   getRecentMessages(conversationId: string, limit?: number): Promise<StoredMessage[]>;
   saveClassification(messageId: string, result: Classification): Promise<void>;
   // The parent's last earlier message in the same conversation, sent in the last 24 hours.
   getPreviousParentMessage(conversationId: string, messageId: string, sentAt: Date): Promise<string | null>;
+  // F7: one run per message. True for the first run (or a run that finds a stale claim).
+  // "claimed": this run answers. "taken": another run has it. "cap": too many replies in 24 hours (recorded as a hand-over by the database).
+  claimMessage(conversationId: string, messageId: string, cap?: number): Promise<"claimed" | "taken" | "cap">;
+  updateDecision(messageId: string, patch: DecisionPatch): Promise<void>;
+  saveHandover(input: { conversationId: string; messageId: string; reason: string }): Promise<void>;
+  saveOutbound(input: { conversationId: string; waMessageId: string | null; body: string; sentAt: Date }): Promise<void>;
+  getMessageClassification(messageId: string): Promise<StoredClassification | null>;
 };
 
 export const PREVIOUS_MESSAGE_WINDOW_HOURS = 24;
@@ -107,6 +139,51 @@ export function createMemory(db: SupabaseClient): Memory {
         .limit(1);
       if (error) throw new Error(`read failed: ${error.code ?? "unknown"}`);
       return data && data.length > 0 ? (data[0].body as string) : null;
+    },
+
+    async claimMessage(conversationId, messageId, cap = 20) {
+      const { data, error } = await db.rpc("academy_claim_message", { p_conversation_id: conversationId, p_message_id: messageId, p_cap: cap });
+      if (error) throw new Error(`claim failed: ${error.code ?? "unknown"}`);
+      return data === "claimed" || data === "cap" ? data : "taken";
+    },
+
+    async updateDecision(messageId, patch) {
+      const row: Record<string, unknown> = {};
+      const map: Record<string, string> = {
+        status: "status", reason: "reason", language: "language", label: "label", labelConfidence: "label_confidence",
+        checks: "checks", fixAttempted: "fix_attempted", model: "model", inputTokens: "input_tokens",
+        outputTokens: "output_tokens", costUsd: "cost_usd", latencyMs: "latency_ms", sent: "sent", sendError: "send_error",
+      };
+      for (const [key, value] of Object.entries(patch)) if (value !== undefined) row[map[key]] = value;
+      const { error } = await db.from("academy_decisions").update(row).eq("message_id", messageId);
+      if (error) throw new Error(`decision save failed: ${error.code ?? "unknown"}`);
+    },
+
+    async saveHandover({ conversationId, messageId, reason }) {
+      const { error } = await db.from("academy_handovers").insert({ conversation_id: conversationId, message_id: messageId, reason });
+      if (error) throw new Error(`handover save failed: ${error.code ?? "unknown"}`);
+    },
+
+    async saveOutbound({ conversationId, waMessageId, body, sentAt }) {
+      const { error } = await db.from("academy_messages").insert({
+        conversation_id: conversationId,
+        direction: "out",
+        body,
+        wa_message_id: waMessageId ?? `out-${randomUUID()}`,
+        sent_at: sentAt.toISOString(),
+      });
+      if (error) throw new Error(`outgoing save failed: ${error.code ?? "unknown"}`);
+    },
+
+    async getMessageClassification(messageId) {
+      const { data, error } = await db
+        .from("academy_messages")
+        .select("engine, label, label_confidence, language")
+        .eq("id", messageId)
+        .maybeSingle();
+      if (error) throw new Error(`read failed: ${error.code ?? "unknown"}`);
+      if (!data) return null;
+      return { engine: data.engine, label: data.label, labelConfidence: data.label_confidence, language: data.language };
     },
   };
 }

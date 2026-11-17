@@ -1,7 +1,13 @@
+import { after } from "next/server";
+import { runAgent, type AgentItem } from "@/lib/agent";
 import { getDb } from "@/lib/db";
-import { createMemory } from "@/lib/memory";
 import { classifyMessage } from "@/lib/jev";
+import { createMemory } from "@/lib/memory";
+import { createSender } from "@/lib/send";
 import { handleWebhook } from "@/lib/webhook";
+
+// The agent runs after the 200 is sent: two Claude calls and a send can take a while.
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   return handleWebhook(request, {
@@ -11,5 +17,11 @@ export async function POST(request: Request) {
     },
     secret: process.env.D360_WEBHOOK_SECRET,
     classify: classifyMessage,
+    schedule: (work) => after(work),
+    agent: async (items: AgentItem[]) => {
+      const memory = createMemory(getDb());
+      const send = createSender();
+      await Promise.all(items.map((item) => runAgent(item, { memory, send })));
+    },
   });
 }

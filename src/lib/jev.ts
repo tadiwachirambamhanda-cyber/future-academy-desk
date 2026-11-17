@@ -57,8 +57,8 @@ const BUSINESS_CONTEXT = "A school receiving a WhatsApp enquiry from a parent.";
 // ---------------------------------------------------------------------------
 
 export type Classification = {
-  engine: "jev" | "error" | "skipped";
-  language: string | null; // what Jev (or the word check) said
+  engine: "jev" | "claude" | "error" | "skipped";
+  language: string | null; // what Jev (or the word check, or Claude) said
   languageConfidence: number | null;
   label: string | null; // empty means: not for the English path
   labelConfidence: number | null;
@@ -66,6 +66,7 @@ export type Classification = {
   inputTokens: number | null;
   costUsd: number | null;
   error: string | null; // kind of failure only, never message text
+  moneyException?: boolean; // only the Claude reader sets this; it is not stored
 };
 
 export type JevAnswers = {
@@ -76,11 +77,9 @@ export type JevAnswers = {
 
 export type AskJev = (state: Record<string, string>) => Promise<JevAnswers>;
 
-const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
-
 const AnswersSchema = z.object({
-  intent: z.object({ choice: z.enum(Object.keys(QUESTIONS.intent.options) as [Intent, ...Intent[]]), confidence: z.number() }),
-  language: z.object({ choice: z.enum(Object.keys(QUESTIONS.language.options) as [Language, ...Language[]]), confidence: z.number() }),
+  intent: z.object({ choice: z.enum(Object.keys(QUESTIONS.intent.options) as [Intent, ...Intent[]]), confidence: z.number().min(0).max(1) }),
+  language: z.object({ choice: z.enum(Object.keys(QUESTIONS.language.options) as [Language, ...Language[]]), confidence: z.number().min(0).max(1) }),
   inputTokens: z.number().nullable(),
 });
 
@@ -149,8 +148,8 @@ export async function classifyMessage(text: string, options: ClassifyOptions = {
 
   // 4. Code judges.
   const a = parsed.data;
-  const languageConfidence = clamp01(a.language.confidence);
-  const intentConfidence = clamp01(a.intent.confidence);
+  const languageConfidence = a.language.confidence;
+  const intentConfidence = a.intent.confidence;
   const isEnglish = a.language.choice === "english" && languageConfidence >= JEV_MIN_CONFIDENCE;
   const label = !isEnglish ? null : intentConfidence >= JEV_MIN_CONFIDENCE ? a.intent.choice : "unsure";
 
