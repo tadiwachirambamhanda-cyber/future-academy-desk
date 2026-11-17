@@ -70,7 +70,7 @@ describe("F7: sending", () => {
     vi.stubEnv("D360_API_KEY", "k");
     expect(await createSender({ fetchImpl: f as unknown as typeof fetch, allowedRecipients: ALLOWED })("263770000002", "  ")).toEqual({ ok: false, error: "empty_text" });
     const bad = vi.fn<typeof fetch>(async () => new Response("no", { status: 401 }));
-    expect(await createSender({ fetchImpl: bad as unknown as typeof fetch, allowedRecipients: ALLOWED })("263770000002", "hi")).toEqual({ ok: false, error: "http_401" });
+    expect(await createSender({ fetchImpl: bad as unknown as typeof fetch, allowedRecipients: ALLOWED })("263770000002", "hi")).toEqual({ ok: false, error: "http_401: no" });
     const boom = vi.fn<typeof fetch>(async () => { throw new TypeError("network"); });
     expect(await createSender({ fetchImpl: boom as unknown as typeof fetch, allowedRecipients: ALLOWED })("263770000002", "hi")).toEqual({ ok: false, error: "TypeError" });
   });
