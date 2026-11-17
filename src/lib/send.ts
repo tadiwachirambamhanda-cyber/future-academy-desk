@@ -16,9 +16,17 @@ type Options = {
 // Phone numbers and long ids are redacted, and it is cut short.
 async function providerReason(res: Response): Promise<string> {
   try {
-    const body = (await res.json()) as { error?: { message?: string; error_data?: { details?: string } }; errors?: { title?: string; details?: string }[]; meta?: { developer_message?: string } };
-    const text = body.error?.error_data?.details ?? body.error?.message ?? body.errors?.[0]?.details ?? body.errors?.[0]?.title ?? body.meta?.developer_message ?? "";
-    const clean = text.replace(/\d{6,}/g, "[number]").replace(/\s+/g, " ").trim().slice(0, 160);
+    const raw = await res.text();
+    let text = raw;
+    try {
+      const body = JSON.parse(raw) as { error?: { message?: string; error_data?: { details?: string } }; errors?: { title?: string; details?: string }[]; meta?: { developer_message?: string } };
+      text = body.error?.error_data?.details ?? body.error?.message ?? body.errors?.[0]?.details ?? body.errors?.[0]?.title ?? body.meta?.developer_message ?? raw;
+    } catch {
+      // not JSON: keep the plain text
+    }
+    const key = process.env.D360_API_KEY;
+    if (key) text = text.split(key).join("[key]");
+    const clean = `${res.statusText} ${text}`.replace(/\d{6,}/g, "[number]").replace(/\s+/g, " ").trim().slice(0, 200);
     return clean ? `: ${clean}` : "";
   } catch {
     return "";
